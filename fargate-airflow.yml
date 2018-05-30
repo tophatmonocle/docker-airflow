@@ -1,0 +1,263 @@
+Resources:
+  ecsExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+            - Action:
+                - 'sts:AssumeRole'
+              Effect: Allow
+              Principal:
+                Service:
+                  - ecs-tasks.amazonaws.com
+
+    Type: 'AWS::IAM::Role'
+
+  Cluster:
+      Properties:
+        ClusterName: airflow
+      Type: 'AWS::ECS::Cluster'
+
+  webserverTargetGroup:
+    Properties:
+      VpcId: vpc-d92765bf
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      Name: webserverTargetGroup
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: '60'
+      TargetType: ip
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+
+
+  webserverService:
+      Properties:
+        Cluster: !GetAtt
+          - Cluster
+          - Arn
+        DesiredCount: 1
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            SecurityGroups:
+              - sg-71773f39
+            Subnets:
+              - subnet-c8a196e5
+              - subnet-6439de2c
+              - subnet-f8f3d1a3
+              - subnet-e999fcd5
+              - subnet-1cc5c110
+        TaskDefinition: !Ref webserverTask
+
+        LoadBalancers:
+          - LoadBalancer:
+              - ContainerName: webserver
+              - ContainerPort: 8080
+              - TargetGroupArn: !Ref webserverTargetGroup
+
+      Type: 'AWS::ECS::Service'
+
+  webserverTask:
+    Properties:
+      ContainerDefinitions:
+        - Command:
+            - webserver
+
+          Environment:
+              # TODO - move these secrets out of here!
+
+              - Name: EXECUTOR
+                Value: Celery
+              - Name: REDIS_HOST
+                Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+              - Name: REDIS_PORT
+                Value: 6379
+              - Name: CELERY__BROKER_URL
+                Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+              - Name: POSTGRES_HOST
+                Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+              - Name: POSTGRES_USER
+                Value: airflow
+              - Name: POSTGRES_PASSWORD
+                Value: airflow123
+              - Name: POSTGRES_DB
+                Value: airflow
+
+          Essential: 'true'
+          Image: puckel/docker-airflow:1.9.0-3
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: webserver
+          PortMappings:
+            - "8080:8080"
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-webserver'
+          User: logstash
+          WorkingDirectory: /usr/share/logstash/
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-celeryelasticsearch'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+    Type: 'AWS::ECS::TaskDefinition'
+
+
+  workerService:
+      Properties:
+        Cluster: !GetAtt
+          - Cluster
+          - Arn
+        DesiredCount: 1
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            SecurityGroups:
+              - sg-71773f39
+            Subnets:
+              - subnet-c8a196e5
+              - subnet-6439de2c
+              - subnet-f8f3d1a3
+              - subnet-e999fcd5
+              - subnet-1cc5c110
+        TaskDefinition: !Ref workerTask
+      Type: 'AWS::ECS::Service'
+
+  workerTask:
+    Properties:
+
+      ContainerDefinitions:
+        - Command:
+            - worker
+
+          Environment:
+            - Name: FERNET_KEY
+              Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - Name: EXECUTOR
+              Value: Celery
+            - Name: POSTGRES_HOST
+              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+            - Name: POSTGRES_USER
+              Value: airflow
+            - Name: POSTGRES_PASSWORD
+              Value: airflow123
+            - Name: POSTGRES_DB
+              Value: airflow
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+
+          Essential: 'true'
+          Image: puckel/docker-airflow:1.9.0-3
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: worker
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-worker'
+          User: logstash
+          WorkingDirectory: /usr/share/logstash/
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-worker'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+    Type: 'AWS::ECS::TaskDefinition'
+
+  schedulerService:
+      Properties:
+        Cluster: !GetAtt
+          - Cluster
+          - Arn
+        DesiredCount: 1
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            SecurityGroups:
+              - sg-71773f39
+            Subnets:
+              - subnet-c8a196e5
+              - subnet-6439de2c
+              - subnet-f8f3d1a3
+              - subnet-e999fcd5
+              - subnet-1cc5c110
+        TaskDefinition: !Ref workerTask
+      Type: 'AWS::ECS::Service'
+
+  schedulerTask:
+    Properties:
+
+      ContainerDefinitions:
+        - Command:
+            - scheduler
+
+          Environment:
+            - Name: FERNET_KEY
+              Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - Name: EXECUTOR
+              Value: Celery
+            - Name: POSTGRES_HOST
+              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+            - Name: POSTGRES_USER
+              Value: airflow
+            - Name: POSTGRES_PASSWORD
+              Value: airflow123
+            - Name: POSTGRES_DB
+              Value: airflow
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+
+          Essential: 'true'
+          Image: puckel/docker-airflow:1.9.0-3
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: worker
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-worker'
+          User: logstash
+          WorkingDirectory: /usr/share/logstash/
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-worker'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+    Type: 'AWS::ECS::TaskDefinition'
+
+
