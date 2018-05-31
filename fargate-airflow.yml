@@ -23,6 +23,30 @@ Resources:
         ClusterName: airflow
       Type: 'AWS::ECS::Cluster'
 
+  webserverBalancer:
+    Properties:
+      Subnets:
+        - subnet-c8a196e5
+        - subnet-6439de2c
+        - subnet-f8f3d1a3
+        - subnet-e999fcd5
+        - subnet-1cc5c110
+
+      SecurityGroups:
+        - sg-71773f39
+
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+
+  webserverListener:
+    Properties:
+      Port: 8080
+      Protocol: HTTP
+      LoadBalancerArn: !Ref webserverBalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref webserverTargetGroup
+          Type: forward
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+
   webserverTargetGroup:
     Properties:
       VpcId: vpc-d92765bf
@@ -36,6 +60,7 @@ Resources:
         Value: '60'
       TargetType: ip
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: webserverBalancer
 
 
   webserverService:
@@ -59,12 +84,15 @@ Resources:
         TaskDefinition: !Ref webserverTask
 
         LoadBalancers:
-          - LoadBalancer:
-              - ContainerName: webserver
-              - ContainerPort: 8080
-              - TargetGroupArn: !Ref webserverTargetGroup
+            - ContainerName: !Sub '${AWS::StackName}-webserver'
+              ContainerPort: 8080
+              TargetGroupArn: !Ref webserverTargetGroup
 
       Type: 'AWS::ECS::Service'
+      DependsOn:
+        - webserverBalancer
+        - webserverTargetGroup
+        - webserverListener
 
   webserverTask:
     Properties:
@@ -108,11 +136,14 @@ Resources:
           User: logstash
           WorkingDirectory: /usr/share/logstash/
       Cpu: '256'
-      Family: !Sub '${AWS::StackName}-celeryelasticsearch'
+      Family: !Sub '${AWS::StackName}-webserver'
       Memory: '1024'
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
       TaskRoleArn: !GetAtt
         - ecsExecutionRole
         - Arn
@@ -186,6 +217,10 @@ Resources:
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
+
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
 
       TaskRoleArn: !GetAtt
         - ecsExecutionRole
@@ -261,6 +296,9 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+      ExecutionRoleArn: !GetAtt
         - ecsExecutionRole
         - Arn
 
