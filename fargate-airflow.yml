@@ -9,6 +9,7 @@ Resources:
               Principal:
                 Service:
                   - ecs-tasks.amazonaws.com
+                  - logs.us-east-1.amazonaws.com
 
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
