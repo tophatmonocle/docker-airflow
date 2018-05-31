@@ -57,7 +57,7 @@ Resources:
   webserverTargetGroup:
     Properties:
       VpcId: vpc-d92765bf
-      Port: 80
+      Port: 8080
       Protocol: HTTP
       Matcher:
         HttpCode: 200-299
