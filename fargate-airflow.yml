@@ -10,6 +10,11 @@ Resources:
                 Service:
                   - ecs-tasks.amazonaws.com
 
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+      Path: /
+      RoleName: !Sub 'ecs-task-role-${AWS::StackName}-exec'
+
     Type: 'AWS::IAM::Role'
 
   Cluster:
@@ -95,7 +100,7 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: webserver
           PortMappings:
-            - "8080:8080"
+            - ContainerPort: 8080
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-webserver'
