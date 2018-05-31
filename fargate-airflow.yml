@@ -1,4 +1,11 @@
 Resources:
+  logGroup:
+
+    Properties:
+      LogGroupName: !Ref "AWS::StackName"
+      RetentionInDays: 7
+    Type: "AWS::Logs::LogGroup"
+
   ecsExecutionRole:
     Properties:
       AssumeRolePolicyDocument:
@@ -125,7 +132,7 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-group: !Ref logGroup
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: webserver
           PortMappings:
@@ -133,8 +140,6 @@ Resources:
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-webserver'
-          User: logstash
-          WorkingDirectory: /usr/share/logstash/
       Cpu: '256'
       Family: !Sub '${AWS::StackName}-webserver'
       Memory: '1024'
@@ -203,14 +208,12 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-group: !Ref logGroup
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: worker
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-worker'
-          User: logstash
-          WorkingDirectory: /usr/share/logstash/
       Cpu: '256'
       Family: !Sub '${AWS::StackName}-worker'
       Memory: '1024'
@@ -281,14 +284,12 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-group: !Ref logGroup
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: worker
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-worker'
-          User: logstash
-          WorkingDirectory: /usr/share/logstash/
       Cpu: '256'
       Family: !Sub '${AWS::StackName}-worker'
       Memory: '1024'
@@ -303,5 +304,3 @@ Resources:
         - Arn
 
     Type: 'AWS::ECS::TaskDefinition'
-
-
