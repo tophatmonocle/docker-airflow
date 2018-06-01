@@ -33,11 +33,11 @@ Resources:
   webserverBalancer:
     Properties:
       Subnets:
-        - subnet-c8a196e5
-        - subnet-6439de2c
-        - subnet-f8f3d1a3
-        - subnet-e999fcd5
-        - subnet-1cc5c110
+        - subnet-caa196e7
+        - subnet-6539de2d
+        - subnet-f9f3d1a2
+        - subnet-e899fcd4
+        - subnet-383b3f34
 
       SecurityGroups:
         - sg-71773f39
@@ -59,8 +59,10 @@ Resources:
       VpcId: vpc-d92765bf
       Port: 8080
       Protocol: HTTP
+      HealthCheckPath: /admin/
+      HealthCheckPort: 8080
       Matcher:
-        HttpCode: 200-299
+        HttpCode: 200
       Name: webserverTargetGroup
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
