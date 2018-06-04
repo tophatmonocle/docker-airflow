@@ -6,6 +6,29 @@ Resources:
       RetentionInDays: 7
     Type: "AWS::Logs::LogGroup"
 
+  logBucket:
+    Properties:
+      AccessControl: "PublicReadWrite"
+
+    Type: "AWS::S3::Bucket"
+
+# TODO - make this work
+# logBucketPolicy:
+#    Type: "AWS::S3::BucketPolicy"
+#    Properties:
+#      Bucket: !Ref logBucket
+#      PolicyDocument:
+#        Statement:
+#          Id: Access-to-specific-VPC-only
+#          Version: '2012-10-17'
+#          Action: "s3:*"
+#          Effect: Deny
+#          Resource: !Sub "arn:aws:s3:::${logBucket}/*"
+#          Condition:
+#            StringNotEquals:
+#              aws:SourceVpc: vpc-d92765bf
+#          Principal: "*"
+
   ecsExecutionRole:
     Properties:
       AssumeRolePolicyDocument:
@@ -112,6 +135,8 @@ Resources:
           Environment:
               # TODO - move these secrets out of here!
 
+              - Name: CORE__SQL_ALCHEMY_CONN
+                Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
               - Name: EXECUTOR
                 Value: Celery
               - Name: REDIS_HOST
@@ -186,6 +211,8 @@ Resources:
             - worker
 
           Environment:
+            - Name: CORE__SQL_ALCHEMY_CONN
+              Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
             - Name: FERNET_KEY
               Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
             - Name: EXECUTOR
@@ -280,6 +307,11 @@ Resources:
               Value: 6379
             - Name: CELERY__BROKER_URL
               Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+            - Name: CORE__SQL_ALCHEMY_CONN
+              Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+            - Name:  CELERY__CELERY_RESULT_BACKEND
+              Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+
 
           Essential: 'true'
           Image: puckel/docker-airflow:1.9.0-3
@@ -288,12 +320,129 @@ Resources:
             Options:
               awslogs-group: !Ref logGroup
               awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: worker
+              awslogs-stream-prefix: scheduler
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-worker'
       Cpu: '256'
       Family: !Sub '${AWS::StackName}-worker'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+    Type: 'AWS::ECS::TaskDefinition'
+
+  flowerBalancer:
+    Properties:
+      Subnets:
+        - subnet-caa196e7
+        - subnet-6539de2d
+        - subnet-f9f3d1a2
+        - subnet-e899fcd4
+        - subnet-383b3f34
+
+      SecurityGroups:
+        - sg-71773f39
+
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+
+  flowerListener:
+    Properties:
+      Port: 8080
+      Protocol: HTTP
+      LoadBalancerArn: !Ref flowerBalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref flowerTargetGroup
+          Type: forward
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+
+  flowerTargetGroup:
+    Properties:
+      VpcId: vpc-d92765bf
+      Port: 5555
+      Protocol: HTTP
+      HealthCheckPath: /
+      HealthCheckPort: 5555
+      Matcher:
+        HttpCode: 200
+      Name: flowerTargetGroup
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: '60'
+      TargetType: ip
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: flowerBalancer
+
+  flowerService:
+    Properties:
+      Cluster: !GetAtt
+        - Cluster
+        - Arn
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - sg-71773f39
+          Subnets:
+            - subnet-c8a196e5
+            - subnet-6439de2c
+            - subnet-f8f3d1a3
+            - subnet-e999fcd5
+            - subnet-1cc5c110
+      TaskDefinition: !Ref flowerTask
+    Type: 'AWS::ECS::Service'
+    DependsOn:
+      - flowerBalancer
+      - flowerTargetGroup
+      - flowerListener
+
+  flowerTask:
+    Properties:
+
+      ContainerDefinitions:
+        - Command:
+            - flower
+
+          Environment:
+            - Name: EXECUTOR
+              Value: Celery
+            - Name: POSTGRES_HOST
+              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+            - Name: POSTGRES_USER
+              Value: airflow
+            - Name: POSTGRES_PASSWORD
+              Value: airflow123
+            - Name: POSTGRES_DB
+              Value: airflow
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+
+          Essential: 'true'
+          Image: puckel/docker-airflow:1.9.0-3
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref logGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: flower
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-flower'
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-flower'
       Memory: '1024'
       NetworkMode: awsvpc
       RequiresCompatibilities:
