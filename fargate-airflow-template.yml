@@ -7,27 +7,27 @@ Resources:
     Type: "AWS::Logs::LogGroup"
 
   logBucket:
-    Properties:
-      AccessControl: "PublicReadWrite"
-
     Type: "AWS::S3::Bucket"
 
-# TODO - make this work
-# logBucketPolicy:
-#    Type: "AWS::S3::BucketPolicy"
-#    Properties:
-#      Bucket: !Ref logBucket
-#      PolicyDocument:
-#        Statement:
-#          Id: Access-to-specific-VPC-only
-#          Version: '2012-10-17'
-#          Action: "s3:*"
-#          Effect: Deny
-#          Resource: !Sub "arn:aws:s3:::${logBucket}/*"
-#          Condition:
-#            StringNotEquals:
-#              aws:SourceVpc: vpc-d92765bf
-#          Principal: "*"
+  # TODO - make this work
+  logBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref logBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::008963853103:role/Administrator'
+            Action: 's3:*'
+            Resource: !Sub 'arn:aws:s3:::${logBucket}'
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:*'
+            Resource: !Sub 'arn:aws:s3:::${logBucket}'
+            Condition:
+              StringEquals:
+                'aws:SourceVpc': vpc-d92765bf
 
   ecsExecutionRole:
     Properties:
@@ -130,12 +130,11 @@ Resources:
     Properties:
       ContainerDefinitions:
         - Command:
-            - webserver
+          - webserver
 
           Environment:
               # TODO - move these secrets out of here!
-
-              - Name: CORE__SQL_ALCHEMY_CONN
+              - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
                 Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
               - Name: EXECUTOR
                 Value: Celery
@@ -155,7 +154,7 @@ Resources:
                 Value: airflow
 
           Essential: 'true'
-          Image: puckel/docker-airflow:1.9.0-3
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -211,7 +210,7 @@ Resources:
             - worker
 
           Environment:
-            - Name: CORE__SQL_ALCHEMY_CONN
+            - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
               Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
             - Name: FERNET_KEY
               Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
@@ -233,7 +232,7 @@ Resources:
               Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
 
           Essential: 'true'
-          Image: puckel/docker-airflow:1.9.0-3
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -278,7 +277,7 @@ Resources:
               - subnet-f8f3d1a3
               - subnet-e999fcd5
               - subnet-1cc5c110
-        TaskDefinition: !Ref workerTask
+        TaskDefinition: !Ref schedulerTask
       Type: 'AWS::ECS::Service'
 
   schedulerTask:
@@ -314,7 +313,7 @@ Resources:
 
 
           Essential: 'true'
-          Image: puckel/docker-airflow:1.9.0-3
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -399,6 +398,12 @@ Resources:
             - subnet-e999fcd5
             - subnet-1cc5c110
       TaskDefinition: !Ref flowerTask
+
+      LoadBalancers:
+        - ContainerName: !Sub '${AWS::StackName}-flower'
+          ContainerPort: 5555
+          TargetGroupArn: !Ref flowerTargetGroup
+
     Type: 'AWS::ECS::Service'
     DependsOn:
       - flowerBalancer
@@ -415,6 +420,12 @@ Resources:
           Environment:
             - Name: EXECUTOR
               Value: Celery
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
             - Name: POSTGRES_HOST
               Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
             - Name: POSTGRES_USER
@@ -423,15 +434,11 @@ Resources:
               Value: airflow123
             - Name: POSTGRES_DB
               Value: airflow
-            - Name: REDIS_HOST
-              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
-            - Name: REDIS_PORT
-              Value: 6379
-            - Name: CELERY__BROKER_URL
-              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+            - Name:  CELERY__CELERY_RESULT_BACKEND
+              Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
 
           Essential: 'true'
-          Image: puckel/docker-airflow:1.9.0-3
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -441,6 +448,10 @@ Resources:
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-flower'
+          PortMappings:
+            - ContainerPort: 5555
+              HostPort: 5555
+
       Cpu: '256'
       Family: !Sub '${AWS::StackName}-flower'
       Memory: '1024'
