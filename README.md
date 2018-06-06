@@ -1,14 +1,14 @@
-#Airflow Cluster
+# Airflow Cluster
 
 Airflow is a job scheduler that we used to run our ETL jobs.  At THM, we run Airflow on a cluster of Docker containers, which is managed by AWS Fargate.
 
-##Contributing
+## Contributing
 
 Airflow jobs are found in the `/dags/` folder.  To edit or contribute a DAG, submit a PR.  It will require approval before it can be merged an deployed.  Post a message to #analytics or #data-council (?) on Slack if you can't find a reviewer.
 
 TBA - Contribution guidelines.
 
-##Deploy process
+## Deploy process
 
 Note:  This is how this is *going* to work, not how it currently works (which it doesn't).
 
@@ -16,7 +16,7 @@ Once a PR is merged into master, a build and deploy is triggered on Jenkins.  A 
 
 This process takes about X minutes to complete.
 
-##Local running
+## Running locally
 
 Scenario #1 - Testing DAGs
 
