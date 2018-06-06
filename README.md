@@ -32,3 +32,15 @@ For either/both of the above scenarios, you can run the cluster on your local as
 2.  Put up a cluster on your local using `docker-compose -f docker-compose-CeleryExecutor.yml up`
 3.  Connect to the webserver at `localhost:8080`.  
 4.  The queue can be monitored at `localhost:5555`, if necessary. 
+
+## About the cluster
+
+The cluster is basically a group of task-specific docker containers that interact with each other via a group of shared resources.  Items of particular interest are:
+
+1.  Postgres DB.  Stores the Airflow metadata.  Persists between deploys. 
+2.  Redis (Elasticache) that stores the job queue.  Persists between deploys.  
+3.  CloudWatch.  Stores logs from the containers.
+3.  Worker Container (runs the jobs) - re-created each deploy.
+4.  Webserver Container - re-created each deploy.
+5.  Scheduler Container - re-created each deploy.
+6.  Queue monitor (flower) container - - re-created each deploy.
