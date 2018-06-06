@@ -134,6 +134,8 @@ Resources:
 
           Environment:
               # TODO - move these secrets out of here!
+              - Name: AIRFLOW__CORE__DAG_CONCURRENCY
+                Value: 8
               - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
                 Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
               - Name: EXECUTOR
@@ -210,6 +212,8 @@ Resources:
             - worker
 
           Environment:
+            - Name: AIRFLOW__CORE__DAG_CONCURRENCY
+              Value: 8
             - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
               Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
             - Name: FERNET_KEY
@@ -288,6 +292,8 @@ Resources:
             - scheduler
 
           Environment:
+            - Name: AIRFLOW__CORE__DAG_CONCURRENCY
+              Value: 8
             - Name: FERNET_KEY
               Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
             - Name: EXECUTOR
@@ -322,9 +328,9 @@ Resources:
               awslogs-stream-prefix: scheduler
 
           Memory: 1024
-          Name: !Sub '${AWS::StackName}-worker'
+          Name: !Sub '${AWS::StackName}-scheduler'
       Cpu: '256'
-      Family: !Sub '${AWS::StackName}-worker'
+      Family: !Sub '${AWS::StackName}-scheduler'
       Memory: '1024'
       NetworkMode: awsvpc
       RequiresCompatibilities:
