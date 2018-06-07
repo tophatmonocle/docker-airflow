@@ -1,5 +1,5 @@
 ---
-template_path: templates/cluster_infrastructure.yaml
+template_path: templates/cluster-infrastructure.yaml
 parameters:
   PostgresHost: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
   PostgresUser: airflow
