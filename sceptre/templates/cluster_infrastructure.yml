@@ -1,3 +1,18 @@
+Description: Infrastructure for the Fargate cluster that the Airflow scheduler, worker, and webserver run on.
+
+Parameters:
+  PostgresHost:
+    Type: String
+
+  PostgresUser:
+    Type: String
+
+  PostgresPW:
+    Type: String
+
+  PostgresDB:
+    Type: String
+
 Resources:
   logGroup:
 
@@ -5,28 +20,6 @@ Resources:
       LogGroupName: !Ref "AWS::StackName"
       RetentionInDays: 7
     Type: "AWS::Logs::LogGroup"
-
-  logBucket:
-    Type: "AWS::S3::Bucket"
-
-  logBucketPolicy:
-    Type: "AWS::S3::BucketPolicy"
-    Properties:
-      Bucket: !Ref logBucket
-      PolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: 'arn:aws:iam::008963853103:role/Administrator'
-            Action: 's3:*'
-            Resource: !Sub 'arn:aws:s3:::${logBucket}'
-          - Effect: Allow
-            Principal: '*'
-            Action: 's3:*'
-            Resource: !Sub 'arn:aws:s3:::${logBucket}'
-            Condition:
-              StringEquals:
-                'aws:SourceVpc': vpc-d92765bf
 
   ecsExecutionRole:
     Properties:
@@ -55,14 +48,14 @@ Resources:
   webserverBalancer:
     Properties:
       Subnets:
-        - subnet-caa196e7
+        - subnet-caa196e7 # TODO - use SSM or WHATEVER
         - subnet-6539de2d
         - subnet-f9f3d1a2
         - subnet-e899fcd4
         - subnet-383b3f34
 
       SecurityGroups:
-        - sg-71773f39
+        - sg-71773f39 # TODO - create own security group
 
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
 
@@ -105,7 +98,7 @@ Resources:
           AwsvpcConfiguration:
             AssignPublicIp: DISABLED
             SecurityGroups:
-              - sg-71773f39
+              - sg-71773f39 # TODO - update to SSM/whatever
             Subnets:
               - subnet-c8a196e5
               - subnet-6439de2c
@@ -146,16 +139,16 @@ Resources:
               - Name: CELERY__BROKER_URL
                 Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
               - Name: POSTGRES_HOST
-                Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+                Value: !Ref PostgresHost
               - Name: POSTGRES_USER
-                Value: airflow
+                Value: !Ref PostgresUser
               - Name: POSTGRES_PASSWORD
-                Value: airflow123
+                Value: !Ref PostgresPW
               - Name: POSTGRES_DB
-                Value: airflow
+                Value: !Ref PostgresDB
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest' # TODO - update image!
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -193,7 +186,7 @@ Resources:
           AwsvpcConfiguration:
             AssignPublicIp: DISABLED
             SecurityGroups:
-              - sg-71773f39
+              - sg-71773f39 # TODO - update
             Subnets:
               - subnet-c8a196e5
               - subnet-6439de2c
@@ -211,6 +204,7 @@ Resources:
             - worker
 
           Environment:
+              # TODO - remove secrets!
             - Name: AIRFLOW__CORE__DAG_CONCURRENCY
               Value: 8
             - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
@@ -220,13 +214,13 @@ Resources:
             - Name: EXECUTOR
               Value: Celery
             - Name: POSTGRES_HOST
-              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+              Value: !Ref PostgresHost
             - Name: POSTGRES_USER
-              Value: airflow
+              Value: !Ref PostgresUser
             - Name: POSTGRES_PASSWORD
-              Value: airflow123
+              Value: !Ref PostgresPW
             - Name: POSTGRES_DB
-              Value: airflow
+              Value: !Ref PostgresDB
             - Name: REDIS_HOST
               Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
             - Name: REDIS_PORT
@@ -298,13 +292,13 @@ Resources:
             - Name: EXECUTOR
               Value: Celery
             - Name: POSTGRES_HOST
-              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+              Value: !Ref PostgresHost
             - Name: POSTGRES_USER
-              Value: airflow
+              Value: !Ref PostgresUser
             - Name: POSTGRES_PASSWORD
-              Value: airflow123
+              Value: !Ref PostgresPW
             - Name: POSTGRES_DB
-              Value: airflow
+              Value: !Ref PostgresDB
             - Name: REDIS_HOST
               Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
             - Name: REDIS_PORT
@@ -432,13 +426,13 @@ Resources:
             - Name: CELERY__BROKER_URL
               Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
             - Name: POSTGRES_HOST
-              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+              Value: !Ref PostgresHost
             - Name: POSTGRES_USER
-              Value: airflow
+              Value: !Ref PostgresUser
             - Name: POSTGRES_PASSWORD
-              Value: airflow123
+              Value: !Ref PostgresPW
             - Name: POSTGRES_DB
-              Value: airflow
+              Value: !Ref PostgresDB
             - Name:  CELERY__CELERY_RESULT_BACKEND
               Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
 
