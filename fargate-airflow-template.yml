@@ -1,0 +1,474 @@
+Resources:
+  logGroup:
+
+    Properties:
+      LogGroupName: !Ref "AWS::StackName"
+      RetentionInDays: 7
+    Type: "AWS::Logs::LogGroup"
+
+  logBucket:
+    Type: "AWS::S3::Bucket"
+
+  # TODO - make this work
+  logBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref logBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::008963853103:role/Administrator'
+            Action: 's3:*'
+            Resource: !Sub 'arn:aws:s3:::${logBucket}'
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:*'
+            Resource: !Sub 'arn:aws:s3:::${logBucket}'
+            Condition:
+              StringEquals:
+                'aws:SourceVpc': vpc-d92765bf
+
+  ecsExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+            - Action:
+                - 'sts:AssumeRole'
+              Effect: Allow
+              Principal:
+                Service:
+                  - ecs-tasks.amazonaws.com
+                  - logs.us-east-1.amazonaws.com
+
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+      Path: /
+      RoleName: !Sub 'ecs-task-role-${AWS::StackName}-exec'
+
+    Type: 'AWS::IAM::Role'
+
+  Cluster:
+      Properties:
+        ClusterName: airflow
+      Type: 'AWS::ECS::Cluster'
+
+  webserverBalancer:
+    Properties:
+      Subnets:
+        - subnet-caa196e7
+        - subnet-6539de2d
+        - subnet-f9f3d1a2
+        - subnet-e899fcd4
+        - subnet-383b3f34
+
+      SecurityGroups:
+        - sg-71773f39
+
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+
+  webserverListener:
+    Properties:
+      Port: 8080
+      Protocol: HTTP
+      LoadBalancerArn: !Ref webserverBalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref webserverTargetGroup
+          Type: forward
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+
+  webserverTargetGroup:
+    Properties:
+      VpcId: vpc-d92765bf
+      Port: 8080
+      Protocol: HTTP
+      HealthCheckPath: /admin/
+      HealthCheckPort: 8080
+      Matcher:
+        HttpCode: 200
+      Name: webserverTargetGroup
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: '60'
+      TargetType: ip
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: webserverBalancer
+
+
+  webserverService:
+      Properties:
+        Cluster: !GetAtt
+          - Cluster
+          - Arn
+        DesiredCount: 1
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            SecurityGroups:
+              - sg-71773f39
+            Subnets:
+              - subnet-c8a196e5
+              - subnet-6439de2c
+              - subnet-f8f3d1a3
+              - subnet-e999fcd5
+              - subnet-1cc5c110
+        TaskDefinition: !Ref webserverTask
+
+        LoadBalancers:
+            - ContainerName: !Sub '${AWS::StackName}-webserver'
+              ContainerPort: 8080
+              TargetGroupArn: !Ref webserverTargetGroup
+
+      Type: 'AWS::ECS::Service'
+      DependsOn:
+        - webserverBalancer
+        - webserverTargetGroup
+        - webserverListener
+
+  webserverTask:
+    Properties:
+      ContainerDefinitions:
+        - Command:
+          - webserver
+
+          Environment:
+              # TODO - move these secrets out of here!
+              - Name: AIRFLOW__CORE__DAG_CONCURRENCY
+                Value: 8
+              - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+                Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+              - Name: EXECUTOR
+                Value: Celery
+              - Name: REDIS_HOST
+                Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+              - Name: REDIS_PORT
+                Value: 6379
+              - Name: CELERY__BROKER_URL
+                Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+              - Name: POSTGRES_HOST
+                Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+              - Name: POSTGRES_USER
+                Value: airflow
+              - Name: POSTGRES_PASSWORD
+                Value: airflow123
+              - Name: POSTGRES_DB
+                Value: airflow
+
+          Essential: 'true'
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref logGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: webserver
+          PortMappings:
+            - ContainerPort: 8080
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-webserver'
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-webserver'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+    Type: 'AWS::ECS::TaskDefinition'
+
+
+  workerService:
+      Properties:
+        Cluster: !GetAtt
+          - Cluster
+          - Arn
+        DesiredCount: 1
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            SecurityGroups:
+              - sg-71773f39
+            Subnets:
+              - subnet-c8a196e5
+              - subnet-6439de2c
+              - subnet-f8f3d1a3
+              - subnet-e999fcd5
+              - subnet-1cc5c110
+        TaskDefinition: !Ref workerTask
+      Type: 'AWS::ECS::Service'
+
+  workerTask:
+    Properties:
+
+      ContainerDefinitions:
+        - Command:
+            - worker
+
+          Environment:
+            - Name: AIRFLOW__CORE__DAG_CONCURRENCY
+              Value: 8
+            - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+              Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+            - Name: FERNET_KEY
+              Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - Name: EXECUTOR
+              Value: Celery
+            - Name: POSTGRES_HOST
+              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+            - Name: POSTGRES_USER
+              Value: airflow
+            - Name: POSTGRES_PASSWORD
+              Value: airflow123
+            - Name: POSTGRES_DB
+              Value: airflow
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+
+          Essential: 'true'
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref logGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: worker
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-worker'
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-worker'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+    Type: 'AWS::ECS::TaskDefinition'
+
+  schedulerService:
+      Properties:
+        Cluster: !GetAtt
+          - Cluster
+          - Arn
+        DesiredCount: 1
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            SecurityGroups:
+              - sg-71773f39
+            Subnets:
+              - subnet-c8a196e5
+              - subnet-6439de2c
+              - subnet-f8f3d1a3
+              - subnet-e999fcd5
+              - subnet-1cc5c110
+        TaskDefinition: !Ref schedulerTask
+      Type: 'AWS::ECS::Service'
+
+  schedulerTask:
+    Properties:
+
+      ContainerDefinitions:
+        - Command:
+            - scheduler
+
+          Environment:
+            - Name: AIRFLOW__CORE__DAG_CONCURRENCY
+              Value: 8
+            - Name: FERNET_KEY
+              Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - Name: EXECUTOR
+              Value: Celery
+            - Name: POSTGRES_HOST
+              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+            - Name: POSTGRES_USER
+              Value: airflow
+            - Name: POSTGRES_PASSWORD
+              Value: airflow123
+            - Name: POSTGRES_DB
+              Value: airflow
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+            - Name: CORE__SQL_ALCHEMY_CONN
+              Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+            - Name:  CELERY__CELERY_RESULT_BACKEND
+              Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+
+
+          Essential: 'true'
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref logGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: scheduler
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-scheduler'
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-scheduler'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+    Type: 'AWS::ECS::TaskDefinition'
+
+  flowerBalancer:
+    Properties:
+      Subnets:
+        - subnet-caa196e7
+        - subnet-6539de2d
+        - subnet-f9f3d1a2
+        - subnet-e899fcd4
+        - subnet-383b3f34
+
+      SecurityGroups:
+        - sg-71773f39
+
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+
+  flowerListener:
+    Properties:
+      Port: 8080
+      Protocol: HTTP
+      LoadBalancerArn: !Ref flowerBalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref flowerTargetGroup
+          Type: forward
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+
+  flowerTargetGroup:
+    Properties:
+      VpcId: vpc-d92765bf
+      Port: 5555
+      Protocol: HTTP
+      HealthCheckPath: /
+      HealthCheckPort: 5555
+      Matcher:
+        HttpCode: 200
+      Name: flowerTargetGroup
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: '60'
+      TargetType: ip
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: flowerBalancer
+
+  flowerService:
+    Properties:
+      Cluster: !GetAtt
+        - Cluster
+        - Arn
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - sg-71773f39
+          Subnets:
+            - subnet-c8a196e5
+            - subnet-6439de2c
+            - subnet-f8f3d1a3
+            - subnet-e999fcd5
+            - subnet-1cc5c110
+      TaskDefinition: !Ref flowerTask
+
+      LoadBalancers:
+        - ContainerName: !Sub '${AWS::StackName}-flower'
+          ContainerPort: 5555
+          TargetGroupArn: !Ref flowerTargetGroup
+
+    Type: 'AWS::ECS::Service'
+    DependsOn:
+      - flowerBalancer
+      - flowerTargetGroup
+      - flowerListener
+
+  flowerTask:
+    Properties:
+
+      ContainerDefinitions:
+        - Command:
+            - flower
+
+          Environment:
+            - Name: EXECUTOR
+              Value: Celery
+            - Name: REDIS_HOST
+              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+            - Name: REDIS_PORT
+              Value: 6379
+            - Name: CELERY__BROKER_URL
+              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+            - Name: POSTGRES_HOST
+              Value: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+            - Name: POSTGRES_USER
+              Value: airflow
+            - Name: POSTGRES_PASSWORD
+              Value: airflow123
+            - Name: POSTGRES_DB
+              Value: airflow
+            - Name:  CELERY__CELERY_RESULT_BACKEND
+              Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+
+          Essential: 'true'
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref logGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: flower
+
+          Memory: 1024
+          Name: !Sub '${AWS::StackName}-flower'
+          PortMappings:
+            - ContainerPort: 5555
+              HostPort: 5555
+
+      Cpu: '256'
+      Family: !Sub '${AWS::StackName}-flower'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+      ExecutionRoleArn: !GetAtt
+        - ecsExecutionRole
+        - Arn
+
+    Type: 'AWS::ECS::TaskDefinition'
