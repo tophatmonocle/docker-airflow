@@ -1,3 +1,4 @@
+---
 Description: Airflow resources that persist between cluster deploys - e.g., metadata DB, Queue, and log bucket.
 
 Resources:

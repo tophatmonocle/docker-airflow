@@ -7,6 +7,8 @@ container:  aws ecr get-login --no-include-email --region us-east-1
 
 
 .PHONY: deploy
-deploy: sceptre --dir sceptre launch-dev prod
+deploy: sceptre --dir sceptre launch-env dev
         zappa deploy prod || zappa update prod # TODO is zappa the correct command?
         # zappa deploy healthcheck || zappa update healthcheck - why are these different?
+
+validate: sceptre --dir sceptre validate-template dev cluster_infrastructure
