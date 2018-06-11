@@ -1,0 +1,13 @@
+---
+template_path: templates/airflow-metadata.yaml
+stack_name: airflow-etl-dev-airflow-metadata
+
+parameters:
+  # TODO - get these params from SSM ...
+  PostgresUser: airflow
+  PostgresPW: airflow123
+  PostgresDB: airflow
+  VpcID: vpc-d92765bf
+  SecurityGroup: sg-71773f39
+  SubnetGroup: default-vpc-d92765bf
+

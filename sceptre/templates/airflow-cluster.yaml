@@ -23,6 +23,12 @@ Parameters:
   RedisHost:
     Type: String
 
+  GoogleAuthClient:
+    Type: String
+
+  GoogleAuthSecret:
+    Type: String
+
 Resources:
   logGroup:
 
@@ -58,7 +64,7 @@ Resources:
   webserverBalancer:
     Properties:
       Subnets:
-        - subnet-caa196e7 # TODO - use SSM or WHATEVER
+        - subnet-caa196e7 # TODO - use SSM or WHATEVER - necessary?
         - subnet-6539de2d
         - subnet-f9f3d1a2
         - subnet-e899fcd4
@@ -135,11 +141,22 @@ Resources:
           - webserver
 
           Environment:
-              # TODO - move these secrets out of here!
+              - Name: AIRFLOW__WEBSERVER__AUTHENTICATE
+                Value: True
+              - Name: AIRFLOW__WEBSERVER__AUTH_BACKEND
+                Value: airflow.contrib.auth.backends.google_auth
+              - Name: AIRFLOW__GOOGLE__CLIENT_ID
+                Value: GoogleAuthClient
+              - Name: AIRFLOW__GOOGLE__CLIENT_SECRET
+                Value: GoogleAuthSecret
+              - Name: AIRFLOW__GOOGLE__OAUTH_CALLBACK_ROUTE
+                Value: /oauth2callback
+              - Name: AIRFLOW__GOOGLE__DOMAIN
+                Value: tophatmonocle.com
               - Name: AIRFLOW__CORE__DAG_CONCURRENCY
                 Value: 8
               - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
-                Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+                Value: !Sub 'postgresql+psycopg2://${PostgresUser}:${PostgresPW}@${PostgresHost}/${PostgresDB}?connect_timeout=60'
               - Name: EXECUTOR
                 Value: Celery
               - Name: REDIS_HOST
@@ -147,7 +164,7 @@ Resources:
               - Name: REDIS_PORT
                 Value: 6379
               - Name: CELERY__BROKER_URL
-                Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+                Value: !Sub 'redis://${RedisHost}:6379/1'
               - Name: POSTGRES_HOST
                 Value: !Ref PostgresHost
               - Name: POSTGRES_USER
@@ -158,7 +175,7 @@ Resources:
                 Value: !Ref PostgresDB
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest' # TODO - update image!
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest' # TODO - centralize this
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -214,11 +231,10 @@ Resources:
             - worker
 
           Environment:
-              # TODO - remove secrets!
             - Name: AIRFLOW__CORE__DAG_CONCURRENCY
               Value: 8
             - Name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
-              Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+              Value: !Sub 'postgresql+psycopg2://${PostgresUser}:${PostgresPW}@${PostgresHost}/${PostgresDB}?connect_timeout=60'
             - Name: FERNET_KEY
               Value: 46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
             - Name: EXECUTOR
@@ -236,7 +252,8 @@ Resources:
             - Name: REDIS_PORT
               Value: 6379
             - Name: CELERY__BROKER_URL
-              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+              Value: !Sub 'redis://${RedisHost}:6379/1'
+
 
           Essential: 'true'
           Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
@@ -247,9 +264,9 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: worker
 
-          Memory: 1024
+          Memory: 4096
           Name: !Sub '${AWS::StackName}-worker'
-      Cpu: '256'
+      Cpu: '512'
       Family: !Sub '${AWS::StackName}-worker'
       Memory: '4096'
       NetworkMode: awsvpc
@@ -314,11 +331,11 @@ Resources:
             - Name: REDIS_PORT
               Value: 6379
             - Name: CELERY__BROKER_URL
-              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+              Value: !Sub 'redis://${RedisHost}:6379/1'
             - Name: CORE__SQL_ALCHEMY_CONN
-              Value: 'postgresql+psycopg2://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+              Value: !Sub 'postgresql+psycopg2://${PostgresUser}:${PostgresPW}@${PostgresHost}/${PostgresDB}?connect_timeout=60'
             - Name:  CELERY__CELERY_RESULT_BACKEND
-              Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+              Value: !Sub 'db+postgresql://${PostgresUser}:${PostgresPW}@${PostgresHost}/${PostgresDB}?connect_timeout=60'
 
 
           Essential: 'true'
@@ -434,7 +451,7 @@ Resources:
             - Name: REDIS_PORT
               Value: 6379
             - Name: CELERY__BROKER_URL
-              Value: 'redis://airflow-queue.b9n12d.0001.use1.cache.amazonaws.com:6379/1'
+              Value: !Sub 'redis://${RedisHost}:6379/1'
             - Name: POSTGRES_HOST
               Value: !Ref PostgresHost
             - Name: POSTGRES_USER
@@ -444,7 +461,7 @@ Resources:
             - Name: POSTGRES_DB
               Value: !Ref PostgresDB
             - Name:  CELERY__CELERY_RESULT_BACKEND
-              Value: 'db+postgresql://airflow:airflow123@cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com/airflow?connect_timeout=60'
+              Value: !Sub 'db+postgresql://${PostgresUser}:${PostgresPW}@${PostgresHost}/${PostgresDB}?connect_timeout=60'
 
           Essential: 'true'
           Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'

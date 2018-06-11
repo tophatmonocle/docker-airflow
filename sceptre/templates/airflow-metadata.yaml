@@ -8,12 +8,20 @@ Parameters:
     Type: String
   PostgresPW:
     Type: String
+  VpcID:
+    Type: String
+  PostgresDB:
+    Type: String
+  SubnetGroup:
+    Type: String
 
 Resources:
 
   # securityGroup: TODO - make the security group here ?
   #  Type: "AWS::EC2:SecurityGroup"
   #  Properties:
+
+  # TODO - create the subnet group for RDS and Elasticache
 
   logBucket:
       Type: "AWS::S3::Bucket"
@@ -42,10 +50,12 @@ Resources:
   metaDataDB:
     Type: "AWS::RDS::DBInstance"
     Properties:
-      AllocatedStorage: '0.5'
+      AllocatedStorage: 20
       BackupRetentionPeriod: 0
-      DBInstanceClass: db.m1.small
-      Engine: PostgreSQL
+      DBInstanceClass: db.t2.micro
+      DBName: !Ref PostgresDB
+      DBSubnetGroupName: !Ref SubnetGroup
+      Engine: postgres
       MasterUsername: !Ref PostgresUser
       MasterUserPassword: !Ref PostgresPW
       PubliclyAccessible: False
@@ -56,7 +66,7 @@ Resources:
     Type: "AWS::ElastiCache::CacheCluster"
     Properties:
       CacheNodeType: cache.t2.micro
-      CacheSubnetGroupName: cbattista-local # TODO - create this rather than using the existing one...
+      CacheSubnetGroupName: !Ref SubnetGroup
       Engine: redis
       NumCacheNodes: 1
       VpcSecurityGroupIds:

@@ -12,6 +12,13 @@ Parameters:
     Type: String
 
 Resources:
+  criticalAlertTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        - Endpoint: !Ref notificationEmailAddress
+          Protocol: email
+
   workerMemoryAlarm:
     Type: "AWS::CloudWatch::Alarm"
     Properties:
@@ -20,12 +27,12 @@ Resources:
       OKActions:
         - !Ref criticalAlertTopic
       MetricName: MemoryUtilization
-      NameSpace: AWS/ECS
+      Namespace: AWS/ECS
       Statistic: Average
       Period: 60
       EvaluationPeriods: 3
       Threshold: 90
-      ComparisonOperation: GreatThanThreshold
+      ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: InstanceId
           Value: !Ref workerService
@@ -39,12 +46,12 @@ Resources:
       OKActions:
         - !Ref criticalAlertTopic
       MetricName: CPUUtilization
-      NameSpace: AWS/ECS
+      Namespace: AWS/ECS
       Statistic: Average
       Period: 60
       EvaluationPeriods: 3
       Threshold: 90
-      ComparisonOperation: GreatThanThreshold
+      ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: InstanceId
           Value: !Ref workerService
@@ -57,12 +64,12 @@ Resources:
       OKActions:
         - !Ref criticalAlertTopic
       MetricName: MemoryUtilization
-      NameSpace: AWS/ECS
+      Namespace: AWS/ECS
       Statistic: Average
       Period: 60
       EvaluationPeriods: 3
       Threshold: 90
-      ComparisonOperation: GreatThanThreshold
+      ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: InstanceId
           Value: !Ref schedulerService
@@ -76,12 +83,12 @@ Resources:
       OKActions:
         - !Ref criticalAlertTopic
       MetricName: CPUUtilization
-      NameSpace: AWS/ECS
+      Namespace: AWS/ECS
       Statistic: Average
       Period: 60
       EvaluationPeriods: 3
       Threshold: 90
-      ComparisonOperation: GreatThanThreshold
+      ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: InstanceId
           Value: !Ref schedulerService
@@ -91,19 +98,13 @@ Resources:
 
     Properties:
       AlarmActions:
-        -!Ref criticalAlertTopic
+        - !Ref criticalAlertTopic
       OKActions:
-        -!Ref criticalAlertTopic
+        - !Ref criticalAlertTopic
       MetricName: UnHealthyHostCount
-      NameSpace: AWS/ELB
+      Namespace: AWS/ELB
       Statistic: Maximum
+      ComparisonOperator: GreaterThanThreshold
       Period: 60
       EvaluationPeriods: 3
-      Threhold: 1
-
-  criticalAlertTopic:
-    Type: "AWS::SNS::Topic"
-    Properties:
-      Subscription:
-        - Endpoint: !Ref notificationEmailAddress
-          Protocol: email
+      Threshold: 1

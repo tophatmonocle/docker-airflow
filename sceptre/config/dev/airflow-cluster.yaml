@@ -1,0 +1,15 @@
+---
+template_path: templates/airflow-cluster.yaml
+stack_name: airflow-etl-dev-airflow-cluster
+
+parameters:
+  PostgresHost: !stack_output airflow-metadata::metadataDBAddress
+  PostgresUser: airflow
+  PostgresPW: airflow123
+  PostgresDB: airflow
+  RedisHost: !stack_output airflow-metadata::eventQueueAddress
+  GoogleAuthClient: {{ var.google_auth_client }}
+  GoogleAuthSecret: {{ var.google_auth_secret }}
+
+  VpcID: vpc-d92765bf
+  SecurityGroup: sg-71773f39
