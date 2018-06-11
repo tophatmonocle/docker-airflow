@@ -1,0 +1,10 @@
+---
+template_path: templates/alarms.yaml
+name: airflow-alarms
+dependencies: airflow-cluster
+
+parameters:
+  workerService: !stack_output_external airflow-cluster::workerService
+  webserverService: !stack_output_external airflow-cluster::webserverService
+  schedulerService: !stack_output_external airflow-cluster::schedulerService
+  notificationEmailAddress: christian_battista@tophat.com

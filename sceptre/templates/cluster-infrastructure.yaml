@@ -14,6 +14,15 @@ Parameters:
   PostgresDB:
     Type: String
 
+  VpcID:
+    Type: String
+
+  SecurityGroup:
+    Type: String
+
+  RedisHost:
+    Type: String
+
 Resources:
   logGroup:
 
@@ -56,7 +65,7 @@ Resources:
         - subnet-383b3f34
 
       SecurityGroups:
-        - sg-71773f39 # TODO - create own security group
+        - !Ref SecurityGroup
 
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
 
@@ -72,7 +81,7 @@ Resources:
 
   webserverTargetGroup:
     Properties:
-      VpcId: vpc-d92765bf
+      VpcId: !Ref VpcID
       Port: 8080
       Protocol: HTTP
       HealthCheckPath: /admin/
@@ -99,7 +108,7 @@ Resources:
           AwsvpcConfiguration:
             AssignPublicIp: DISABLED
             SecurityGroups:
-              - sg-71773f39 # TODO - update to SSM/whatever
+              - !Ref SecurityGroup
             Subnets:
               - subnet-c8a196e5
               - subnet-6439de2c
@@ -134,7 +143,7 @@ Resources:
               - Name: EXECUTOR
                 Value: Celery
               - Name: REDIS_HOST
-                Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+                Value: !Ref RedisHost
               - Name: REDIS_PORT
                 Value: 6379
               - Name: CELERY__BROKER_URL
@@ -187,7 +196,7 @@ Resources:
           AwsvpcConfiguration:
             AssignPublicIp: DISABLED
             SecurityGroups:
-              - sg-71773f39 # TODO - update
+              - !Ref SecurityGroup
             Subnets:
               - subnet-c8a196e5
               - subnet-6439de2c
@@ -223,7 +232,7 @@ Resources:
             - Name: POSTGRES_DB
               Value: !Ref PostgresDB
             - Name: REDIS_HOST
-              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+              Value: !Ref RedisHost
             - Name: REDIS_PORT
               Value: 6379
             - Name: CELERY__BROKER_URL
@@ -242,7 +251,7 @@ Resources:
           Name: !Sub '${AWS::StackName}-worker'
       Cpu: '256'
       Family: !Sub '${AWS::StackName}-worker'
-      Memory: '1024'
+      Memory: '4096'
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
@@ -268,7 +277,7 @@ Resources:
           AwsvpcConfiguration:
             AssignPublicIp: DISABLED
             SecurityGroups:
-              - sg-71773f39
+              - !Ref SecurityGroup
             Subnets:
               - subnet-c8a196e5
               - subnet-6439de2c
@@ -301,7 +310,7 @@ Resources:
             - Name: POSTGRES_DB
               Value: !Ref PostgresDB
             - Name: REDIS_HOST
-              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+              Value: !Ref RedisHost
             - Name: REDIS_PORT
               Value: 6379
             - Name: CELERY__BROKER_URL
@@ -348,7 +357,7 @@ Resources:
         - subnet-383b3f34
 
       SecurityGroups:
-        - sg-71773f39
+        - !Ref SecurityGroup
 
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
 
@@ -364,7 +373,7 @@ Resources:
 
   flowerTargetGroup:
     Properties:
-      VpcId: vpc-d92765bf
+      VpcId: !Ref VpcID
       Port: 5555
       Protocol: HTTP
       HealthCheckPath: /
@@ -390,7 +399,7 @@ Resources:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
           SecurityGroups:
-            - sg-71773f39
+            - !Ref SecurityGroup
           Subnets:
             - subnet-c8a196e5
             - subnet-6439de2c
@@ -421,7 +430,7 @@ Resources:
             - Name: EXECUTOR
               Value: Celery
             - Name: REDIS_HOST
-              Value: airflow-queue.b9n12d.0001.use1.cache.amazonaws.com
+              Value: !Ref RedisHost
             - Name: REDIS_PORT
               Value: 6379
             - Name: CELERY__BROKER_URL
@@ -466,3 +475,13 @@ Resources:
         - Arn
 
     Type: 'AWS::ECS::TaskDefinition'
+
+Outputs:
+  workerService:
+    Value: !Ref workerService
+
+  webserverService:
+    Value: !Ref webserverService
+
+  schedulerService:
+    Value: !Ref schedulerService

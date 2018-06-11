@@ -1,8 +1,13 @@
 ---
 template_path: templates/cluster-infrastructure.yaml
+dependencies: airflow-persistent-data
+name: airflow-cluster
 parameters:
-  PostgresHost: cbattista-airflow.cinw9err8rha.us-east-1.rds.amazonaws.com
+  PostgresHost: !stack_output_external airflow-persistent-data::metadataDBAddress
   PostgresUser: airflow
   PostgresPW: airflow123
   PostgresDB: airflow
+  RedisHost: !stack_output_external airflow-persistent-data::eventQueueAddress
 
+  VpcID: vpc-d92765bf
+  SecurityGroup: sg-71773f39
