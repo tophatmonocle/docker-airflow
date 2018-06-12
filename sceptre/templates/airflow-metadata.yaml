@@ -12,8 +12,17 @@ Parameters:
     Type: String
   PostgresDB:
     Type: String
-  SubnetGroup:
+  Subnet1:
+      Type: String
+  Subnet2:
     Type: String
+  Subnet3:
+    Type: String
+  Subnet4:
+    Type: String
+  Subnet5:
+    Type: String
+
 
 Resources:
 
@@ -22,6 +31,11 @@ Resources:
   #  Properties:
 
   # TODO - create the subnet group for RDS and Elasticache
+  securityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription:  For the Airflow ETL Cluster
+      VpcId: !Ref VpcID
 
   logBucket:
       Type: "AWS::S3::Bucket"
@@ -45,7 +59,17 @@ Resources:
               StringEquals:
                 'aws:SourceVpc': vpc-d92765bf
 
-  # Note: After this metaDB is created, 'airflow initdb' needs to be run on it (from a docker container)
+  dbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: For Airflow Metadata DB
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+        - !Ref Subnet3
+        - !Ref Subnet4
+        - !Ref Subnet5
+
 
   metaDataDB:
     Type: "AWS::RDS::DBInstance"
@@ -54,7 +78,7 @@ Resources:
       BackupRetentionPeriod: 0
       DBInstanceClass: db.t2.micro
       DBName: !Ref PostgresDB
-      DBSubnetGroupName: !Ref SubnetGroup
+      DBSubnetGroupName: !Ref dbSubnetGroup
       Engine: postgres
       MasterUsername: !Ref PostgresUser
       MasterUserPassword: !Ref PostgresPW
@@ -62,11 +86,22 @@ Resources:
       VPCSecurityGroups:
         - !Ref SecurityGroup
 
+  queueSubnetGroup:
+    Type: "AWS::ElastiCache::SubnetGroup"
+    Properties:
+      Description: For Airflow Event Queue
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+        - !Ref Subnet3
+        - !Ref Subnet4
+        - !Ref Subnet5
+
   eventQueue:
     Type: "AWS::ElastiCache::CacheCluster"
     Properties:
       CacheNodeType: cache.t2.micro
-      CacheSubnetGroupName: !Ref SubnetGroup
+      CacheSubnetGroupName: !Ref queueSubnetGroup
       Engine: redis
       NumCacheNodes: 1
       VpcSecurityGroupIds:

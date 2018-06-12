@@ -1,0 +1,14 @@
+---
+template_path: templates/airflow-cluster.yaml
+stack_name: airflow-etl-prod-airflow-cluster
+
+parameters:
+  GoogleAuthClient: {{ var.google_auth_client }}
+  GoogleAuthSecret: {{ var.google_auth_secret }}
+  HostedZoneName: tophat.com.
+  PostgresHost: !stack_output airflow-metadata::metadataDBAddress
+  PostgresUser: airflow
+  PostgresPW: B8hAhY7wTCLwL6wC
+  PostgresDB: airflow
+  RedisHost: !stack_output airflow-metadata::eventQueueAddress
+  VpcID: vpc-b22a68d4

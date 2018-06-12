@@ -29,6 +29,21 @@ Parameters:
   SecurityGroup:
     Type: String
 
+  Subnet1:
+    Type: String
+
+  Subnet2:
+    Type: String
+
+  Subnet3:
+    Type: String
+
+  Subnet4:
+    Type: String
+
+  Subnet5:
+    Type: String
+
   VpcID:
     Type: String
 
@@ -106,7 +121,7 @@ Resources:
       HealthCheckPath: /
       HealthCheckPort: 8080
       Matcher:
-        HttpCode: 200
+        HttpCode: 302 # TODO - don't love this, but an unauth'd user is always gonna get a redirect soo....
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
         Value: '60'
@@ -128,11 +143,11 @@ Resources:
             SecurityGroups:
               - !Ref SecurityGroup
             Subnets:
-              - subnet-c8a196e5
-              - subnet-6439de2c
-              - subnet-f8f3d1a3
-              - subnet-e999fcd5
-              - subnet-1cc5c110
+              - !Ref Subnet1
+              - !Ref Subnet2
+              - !Ref Subnet3
+              - !Ref Subnet4
+              - !Ref Subnet5
         TaskDefinition: !Ref webserverTask
 
         LoadBalancers:
@@ -158,9 +173,9 @@ Resources:
               - Name: AIRFLOW__WEBSERVER__AUTH_BACKEND
                 Value: airflow.contrib.auth.backends.google_auth
               - Name: AIRFLOW__GOOGLE__CLIENT_ID
-                Value: GoogleAuthClient
+                Value: !Ref GoogleAuthClient
               - Name: AIRFLOW__GOOGLE__CLIENT_SECRET
-                Value: GoogleAuthSecret
+                Value: !Ref GoogleAuthSecret
               - Name: AIRFLOW__GOOGLE__OAUTH_CALLBACK_ROUTE
                 Value: /oauth2callback
               - Name: AIRFLOW__GOOGLE__DOMAIN

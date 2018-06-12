@@ -7,6 +7,8 @@ parameters:
   PostgresPW: airflow123
   PostgresDB: airflow
   VpcID: vpc-d92765bf
-  SecurityGroup: sg-71773f39
-  SubnetGroup: default-vpc-d92765bf
-
+  Subnet1: subnet-c8a196e5
+  Subnet2: subnet-6439de2c
+  Subnet3: subnet-f8f3d1a3
+  Subnet4: subnet-e999fcd5
+  Subnet5: subnet-1cc5c110

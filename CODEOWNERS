@@ -1,0 +1,8 @@
+CODEOWNERS  @cbattista
+docker-compose-LocalExecutor.yml    @cbattista
+Dockerfile  @cbattista
+Jenkinsfile @cbattista
+config/*    @cbattista
+sceptre/*   @cbattista
+Makefile    @cbattista
+docker-compose-CeleryExecutor.yml   @cbattista
