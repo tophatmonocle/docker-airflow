@@ -9,21 +9,21 @@ container:
 
 .PHONY: delete_dev
 delete_dev:
-	sceptre --var "google_auth_client=$(aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre delete-env dev
+	sceptre --var "google_auth_client=$(shell aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre delete-env dev
 
 .PHONY: deploy_dev
 deploy_dev:
-	sceptre --var "google_auth_client=$(aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre launch-env dev
+	sceptre --var "google_auth_client=$(shell aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre launch-env dev
 
 .PHONY: deploy_prod
 deploy_prod:
-	sceptre --dir sceptre launch-env prod $(aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_ID") $(aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET")
+	sceptre --dir sceptre launch-env prod $(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_ID") $(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET")
 
 .PHONY: validate
 validate:
-	sceptre --dir sceptre validate-template dev persistent-data-infrastructure
-	sceptre --dir sceptre validate-template dev cluster-infrastructure
-	sceptre --dir sceptre validate-template dev alarms
+	sceptre --dir sceptre validate-template dev airflow-alarms
+	sceptre --dir sceptre --var "google_auth_client=fake_client" --var "google_auth_secret=fake_secret" validate-template dev airflow-cluster
+	sceptre --dir sceptre validate-template dev airflow-metadata
 
 .PHONY: deploy_cluster
 deploy_cluster:

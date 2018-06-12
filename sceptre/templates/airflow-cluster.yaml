@@ -2,6 +2,15 @@
 Description: Infrastructure for the Fargate cluster that the Airflow scheduler, worker, and webserver run on.
 
 Parameters:
+  GoogleAuthClient:
+    Type: String
+
+  GoogleAuthSecret:
+    Type: String
+
+  HostedZoneName:
+    Type: String
+
   PostgresHost:
     Type: String
 
@@ -14,19 +23,13 @@ Parameters:
   PostgresDB:
     Type: String
 
-  VpcID:
+  RedisHost:
     Type: String
 
   SecurityGroup:
     Type: String
 
-  RedisHost:
-    Type: String
-
-  GoogleAuthClient:
-    Type: String
-
-  GoogleAuthSecret:
+  VpcID:
     Type: String
 
 Resources:
@@ -60,6 +63,16 @@ Resources:
       Properties:
         ClusterName: airflow
       Type: 'AWS::ECS::Cluster'
+
+  webserverBalancerDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Join [ '.', [ airflow, !Ref HostedZoneName ] ]
+      Type: A
+      AliasTarget:
+        DNSName: airflow
+        HostedZoneId: ZN4FDAHEYJNBS
 
   webserverBalancer:
     Properties:
