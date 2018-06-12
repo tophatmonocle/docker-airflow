@@ -68,11 +68,11 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: !Ref HostedZoneName
-      Name: !Join [ '.', [ airflow, !Ref HostedZoneName ] ]
+      Name: !Join [ '.', [ 'airflow', !Ref HostedZoneName ] ]
       Type: A
       AliasTarget:
-        DNSName: airflow
-        HostedZoneId: ZN4FDAHEYJNBS
+        DNSName: !GetAtt webserverBalancer.DNSName
+        HostedZoneId: !GetAtt webserverBalancer.CanonicalHostedZoneID
 
   webserverBalancer:
     Properties:
@@ -90,7 +90,7 @@ Resources:
 
   webserverListener:
     Properties:
-      Port: 8080
+      Port: 80
       Protocol: HTTP
       LoadBalancerArn: !Ref webserverBalancer
       DefaultActions:
@@ -103,11 +103,10 @@ Resources:
       VpcId: !Ref VpcID
       Port: 8080
       Protocol: HTTP
-      HealthCheckPath: /admin/
+      HealthCheckPath: /
       HealthCheckPort: 8080
       Matcher:
         HttpCode: 200
-      Name: webserverTargetGroup
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
         Value: '60'
@@ -196,7 +195,8 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: webserver
           PortMappings:
-            - ContainerPort: 8080
+            - HostPort: 8080
+              ContainerPort: 8080
 
           Memory: 1024
           Name: !Sub '${AWS::StackName}-webserver'
