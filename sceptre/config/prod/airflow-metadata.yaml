@@ -3,13 +3,14 @@ template_path: templates/airflow-metadata.yaml
 stack_name: airflow-etl-prod-airflow-metadata
 
 parameters:
+  InternalSubnets:
+    - subnet-6cf6d437
+    - subnet-ac9bfe90
+    - subnet-c507e08d
+    - subnet-4bae9966
+    - subnet-c43d39c8
   PostgresUser: airflow
   PostgresPW: B8hAhY7wTCLwL6wC
   PostgresDB: airflow
   VpcID: vpc-b22a68d4
-  Subnet1: subnet-6cf6d437
-  Subnet2: subnet-ac9bfe90
-  Subnet3: subnet-c507e08d
-  Subnet4: subnet-4bae9966
-  Subnet5: subnet-c43d39c8
 

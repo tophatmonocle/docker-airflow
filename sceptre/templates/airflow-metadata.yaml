@@ -2,8 +2,8 @@
 Description: Airflow resources that persist between cluster deploys - e.g., metadata DB, Queue, and log bucket.
 
 Parameters:
-  SecurityGroup:
-    Type: String
+  InternalSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
   PostgresUser:
     Type: String
   PostgresPW:
@@ -12,30 +12,25 @@ Parameters:
     Type: String
   PostgresDB:
     Type: String
-  Subnet1:
-      Type: String
-  Subnet2:
-    Type: String
-  Subnet3:
-    Type: String
-  Subnet4:
-    Type: String
-  Subnet5:
-    Type: String
-
 
 Resources:
 
-  # securityGroup: TODO - make the security group here ?
-  #  Type: "AWS::EC2:SecurityGroup"
-  #  Properties:
-
-  # TODO - create the subnet group for RDS and Elasticache
   securityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription:  For the Airflow ETL Cluster
       VpcId: !Ref VpcID
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: -1
+          ToPort: -1
+          IpProtocol: -1
+        - CidrIpv6: "::/0"
+          FromPort: -1
+          ToPort: -1
+          IpProtocol: -1
+
+
 
   logBucket:
       Type: "AWS::S3::Bucket"
@@ -63,13 +58,7 @@ Resources:
     Type: "AWS::RDS::DBSubnetGroup"
     Properties:
       DBSubnetGroupDescription: For Airflow Metadata DB
-      SubnetIds:
-        - !Ref Subnet1
-        - !Ref Subnet2
-        - !Ref Subnet3
-        - !Ref Subnet4
-        - !Ref Subnet5
-
+      SubnetIds: !Ref InternalSubnets
 
   metaDataDB:
     Type: "AWS::RDS::DBInstance"
@@ -84,18 +73,13 @@ Resources:
       MasterUserPassword: !Ref PostgresPW
       PubliclyAccessible: False
       VPCSecurityGroups:
-        - !Ref SecurityGroup
+        - !Ref securityGroup
 
   queueSubnetGroup:
     Type: "AWS::ElastiCache::SubnetGroup"
     Properties:
       Description: For Airflow Event Queue
-      SubnetIds:
-        - !Ref Subnet1
-        - !Ref Subnet2
-        - !Ref Subnet3
-        - !Ref Subnet4
-        - !Ref Subnet5
+      SubnetIds: !Ref InternalSubnets
 
   eventQueue:
     Type: "AWS::ElastiCache::CacheCluster"
@@ -105,7 +89,7 @@ Resources:
       Engine: redis
       NumCacheNodes: 1
       VpcSecurityGroupIds:
-        - !Ref SecurityGroup
+        - !Ref securityGroup
 
 Outputs:
   metadataDBAddress:
@@ -119,3 +103,6 @@ Outputs:
 
   eventQueuePort:
     Value: !GetAtt eventQueue.RedisEndpoint.Port
+
+  securityGroup:
+    Value: !GetAtt securityGroup.GroupId

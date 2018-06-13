@@ -3,12 +3,25 @@ template_path: templates/airflow-cluster.yaml
 stack_name: airflow-etl-prod-airflow-cluster
 
 parameters:
+  ExternalSubnets:
+    - subnet-63f6d438
+    - subnet-ad9bfe91
+    - subnet-c607e08e
+    - subnet-4aae9967
+    - subnet-b03236bc
   GoogleAuthClient: {{ var.google_auth_client }}
   GoogleAuthSecret: {{ var.google_auth_secret }}
   HostedZoneName: tophat.com.
+  InternalSubnets:
+    - subnet-6cf6d437
+    - subnet-ac9bfe90
+    - subnet-c507e08d
+    - subnet-4bae9966
+    - subnet-c43d39c8
   PostgresHost: !stack_output airflow-metadata::metadataDBAddress
   PostgresUser: airflow
   PostgresPW: B8hAhY7wTCLwL6wC
   PostgresDB: airflow
   RedisHost: !stack_output airflow-metadata::eventQueueAddress
+  SecurityGroup: !stack_output airflow-metadata::securityGroup
   VpcID: vpc-b22a68d4

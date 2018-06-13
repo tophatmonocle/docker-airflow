@@ -2,6 +2,9 @@
 Description: Infrastructure for the Fargate cluster that the Airflow scheduler, worker, and webserver run on.
 
 Parameters:
+  ExternalSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+
   GoogleAuthClient:
     Type: String
 
@@ -10,6 +13,9 @@ Parameters:
 
   HostedZoneName:
     Type: String
+
+  InternalSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
 
   PostgresHost:
     Type: String
@@ -27,25 +33,10 @@ Parameters:
     Type: String
 
   SecurityGroup:
-    Type: String
-
-  Subnet1:
-    Type: String
-
-  Subnet2:
-    Type: String
-
-  Subnet3:
-    Type: String
-
-  Subnet4:
-    Type: String
-
-  Subnet5:
-    Type: String
+    Type: AWS::EC2::SecurityGroup::Id
 
   VpcID:
-    Type: String
+    Type: AWS::EC2::VPC::Id
 
 Resources:
   logGroup:
@@ -91,12 +82,7 @@ Resources:
 
   webserverBalancer:
     Properties:
-      Subnets:
-        - subnet-caa196e7 # TODO - use SSM or WHATEVER - necessary?
-        - subnet-6539de2d
-        - subnet-f9f3d1a2
-        - subnet-e899fcd4
-        - subnet-383b3f34
+      Subnets: !Ref ExternalSubnets
 
       SecurityGroups:
         - !Ref SecurityGroup
@@ -142,12 +128,7 @@ Resources:
             AssignPublicIp: DISABLED
             SecurityGroups:
               - !Ref SecurityGroup
-            Subnets:
-              - !Ref Subnet1
-              - !Ref Subnet2
-              - !Ref Subnet3
-              - !Ref Subnet4
-              - !Ref Subnet5
+            Subnets: !Ref InternalSubnets
         TaskDefinition: !Ref webserverTask
 
         LoadBalancers:
@@ -202,7 +183,7 @@ Resources:
                 Value: !Ref PostgresDB
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest' # TODO - centralize this
+          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest' # TODO? - centralize this?
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -242,12 +223,7 @@ Resources:
             AssignPublicIp: DISABLED
             SecurityGroups:
               - !Ref SecurityGroup
-            Subnets:
-              - subnet-c8a196e5
-              - subnet-6439de2c
-              - subnet-f8f3d1a3
-              - subnet-e999fcd5
-              - subnet-1cc5c110
+            Subnets: !Ref InternalSubnets
         TaskDefinition: !Ref workerTask
       Type: 'AWS::ECS::Service'
 
@@ -323,12 +299,7 @@ Resources:
             AssignPublicIp: DISABLED
             SecurityGroups:
               - !Ref SecurityGroup
-            Subnets:
-              - subnet-c8a196e5
-              - subnet-6439de2c
-              - subnet-f8f3d1a3
-              - subnet-e999fcd5
-              - subnet-1cc5c110
+            Subnets: !Ref InternalSubnets
         TaskDefinition: !Ref schedulerTask
       Type: 'AWS::ECS::Service'
 
@@ -394,12 +365,7 @@ Resources:
 
   flowerBalancer:
     Properties:
-      Subnets:
-        - subnet-caa196e7
-        - subnet-6539de2d
-        - subnet-f9f3d1a2
-        - subnet-e899fcd4
-        - subnet-383b3f34
+      Subnets: !Ref ExternalSubnets
 
       SecurityGroups:
         - !Ref SecurityGroup
@@ -445,12 +411,7 @@ Resources:
           AssignPublicIp: DISABLED
           SecurityGroups:
             - !Ref SecurityGroup
-          Subnets:
-            - subnet-c8a196e5
-            - subnet-6439de2c
-            - subnet-f8f3d1a3
-            - subnet-e999fcd5
-            - subnet-1cc5c110
+          Subnets: !Ref InternalSubnets
       TaskDefinition: !Ref flowerTask
 
       LoadBalancers:

@@ -1,33 +1,14 @@
 #!groovy
 
-pipeline {
-    options {
-        timeout(time: 5, unit: 'MINUTES')
-        ansiColor('xterm')
-    }
-
-    agent {
-        dockerfile {
-            label 'airflow'
-        }
-    }
-
-    stages {
-        stage('Build') {
-            steps {
-             sh 'make container_image'
+node('worker') {
+    checkout scm
+    ansiColor('xterm') {
+        if(env.BRANCH_NAME == 'master') {
+            withAWS(credentials: 'prodAWSCredentials') {
+                sh 'make validate_prod'
+                sh 'make container'
+                sh 'make deploy_prod'
             }
-        }
-
-        stage('Publish') {
-            when {
-                branch 'master'
-            }
-
-            steps {
-                sh 'make deploy'
-            }
-
         }
     }
 }
