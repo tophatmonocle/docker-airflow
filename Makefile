@@ -1,32 +1,26 @@
 #!/usr/bin/env bash
 
-.PHONY: container
-container:
-	aws ecr get-login --no-include-email --region us-east-1
+IMAGE_TAG?=$(firstword $(shell git ls-tree HEAD ./dags/* packer playbooks Makefile | shasum))
+AWS_ECR_PROD_REGISTRY?=306501597120.dkr.ecr.us-east-1.amazonaws.com
+AWS_ECR_DEV_REGISTRY?=008963853103.dkr.ecr.us-east-1.amazonaws.com
+
+.PHONY: delete
+delete:
+	sceptre --var "google_auth_client=$(shell aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre delete-env $(environment)
+
+.PHONY: deploy
+deploy:
+	aws ecr get-login --no-include-email --region us-east-1 # do I need this?
+	sceptre --dir sceptre launch-stack $(environment) airflow-container-repo
 	docker build -t "airflow" .
-	docker tag airflow:latest 008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest # TODO - indicate correct ECR here
-	docker push 008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest
+    #TODO - distinguish between dev and prod registries ...
+	docker tag airflow:latest $(AWS_ECR_DEV_REGISTRY)/airflow:$(IMAGE_TAG)
+	docker push $(AWS_ECR_DEV_REGISTRY)/airflow:$(IMAGE_TAG)
+	sceptre --var "image_tag=$(IMAGE_TAG)" --var "google_auth_client=$(shell aws ssm --with-decryption get-parameters --name "/airflow/$(environment)/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(shell aws ssm get-parameters --with-decryption --names "/airflow/$(environment)/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre launch-env $(environment)
 
-.PHONY: delete_dev
-delete_dev:
-	sceptre --var "google_auth_client=$(shell aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre delete-env dev
+.PHONY: validate
+validate:
+	sceptre --dir sceptre validate-template $(environment) airflow-alarms
+	sceptre --dir sceptre --var "google_auth_client=fake_client" --var "google_auth_secret=fake_secret" validate-template $(environment) airflow-cluster
+	sceptre --dir sceptre validate-template $(environment) airflow-metadata
 
-.PHONY: deploy_dev
-deploy_dev:
-	sceptre --var "google_auth_client=$(shell aws ssm --with-decryption get-parameters --name "/airflow/dev/GOOGLE_AUTH_CLIENT_ID" | jq -r '.Parameters[0].Value')" --var "google_auth_secret=$(shell aws ssm get-parameters --with-decryption --names "/airflow/dev/GOOGLE_AUTH_CLIENT_SECRET" | jq -r '.Parameters[0].Value')" --dir sceptre launch-env dev
-
-.PHONY: deploy_prod
-deploy_prod:
-	sceptre --dir sceptre launch-env prod $(shell aws ssm get-parameters --with-decryption --names "/airflow/prod/GOOGLE_AUTH_CLIENT_ID") $(shell aws ssm get-parameters --with-decryption --names "/airflow/prod/GOOGLE_AUTH_CLIENT_SECRET")
-
-.PHONY: validate_dev
-validate_dev:
-	sceptre --dir sceptre validate-template dev airflow-alarms
-	sceptre --dir sceptre --var "google_auth_client=fake_client" --var "google_auth_secret=fake_secret" validate-template dev airflow-cluster
-	sceptre --dir sceptre validate-template dev airflow-metadata
-
-.PHONY: validate_prod
-validate_prod:
-	sceptre --dir sceptre validate-template prod airflow-alarms
-	sceptre --dir sceptre --var "google_auth_client=fake_client" --var "google_auth_secret=fake_secret" validate-template dev airflow-cluster
-	sceptre --dir sceptre validate-template prod airflow-metadata

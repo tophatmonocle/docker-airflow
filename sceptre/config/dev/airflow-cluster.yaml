@@ -12,6 +12,7 @@ parameters:
   GoogleAuthClient: {{ var.google_auth_client }}
   GoogleAuthSecret: {{ var.google_auth_secret }}
   HostedZoneName: dev.tophat.com.
+  ImageTag: {{ var.image_tag }}
   InternalSubnets:
     - subnet-c8a196e5
     - subnet-6439de2c
@@ -23,6 +24,8 @@ parameters:
   PostgresPW: airflow123
   PostgresDB: airflow
   RedisHost: !stack_output airflow-metadata::eventQueueAddress
+  RepositoryAddress: 008963853103.dkr.ecr.us-east-1.amazonaws.com
+  RepositoryName: !stack_output airflow-container-repo::repositoryName
   SecurityGroup: !stack_output airflow-metadata::securityGroup
   VpcID: vpc-d92765bf
 

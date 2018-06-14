@@ -5,9 +5,7 @@ node('worker') {
     ansiColor('xterm') {
         if(env.BRANCH_NAME == 'master') {
             withAWS(credentials: 'prodAWSCredentials') {
-                sh 'make validate_prod'
-                sh 'make container'
-                sh 'make deploy_prod'
+                sh 'make deploy ENVIRONMENT=prod'
             }
         }
     }

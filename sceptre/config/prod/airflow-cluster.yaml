@@ -12,6 +12,7 @@ parameters:
   GoogleAuthClient: {{ var.google_auth_client }}
   GoogleAuthSecret: {{ var.google_auth_secret }}
   HostedZoneName: tophat.com.
+  ImageTag: {{ var.image_tag }}
   InternalSubnets:
     - subnet-6cf6d437
     - subnet-ac9bfe90
@@ -23,5 +24,7 @@ parameters:
   PostgresPW: B8hAhY7wTCLwL6wC
   PostgresDB: airflow
   RedisHost: !stack_output airflow-metadata::eventQueueAddress
+  RepositoryAddress: 306501597120.dkr.ecr.us-east-1.amazonaws.com
+  RepositoryName: !stack_output airflow-container-repo::repositoryName
   SecurityGroup: !stack_output airflow-metadata::securityGroup
   VpcID: vpc-b22a68d4

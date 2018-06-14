@@ -1,0 +1,3 @@
+---
+template_path: templates/airflow-container-repo.yaml
+stack_name: airflow-etl-dev-airflow-container-repo

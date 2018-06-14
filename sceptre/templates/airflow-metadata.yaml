@@ -14,7 +14,6 @@ Parameters:
     Type: String
 
 Resources:
-
   securityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -29,8 +28,6 @@ Resources:
           FromPort: -1
           ToPort: -1
           IpProtocol: -1
-
-
 
   logBucket:
       Type: "AWS::S3::Bucket"

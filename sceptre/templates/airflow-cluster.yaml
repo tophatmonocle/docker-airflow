@@ -14,6 +14,9 @@ Parameters:
   HostedZoneName:
     Type: String
 
+  ImageTag:
+    Type: String
+
   InternalSubnets:
     Type: List<AWS::EC2::Subnet::Id>
 
@@ -27,6 +30,12 @@ Parameters:
     Type: String
 
   PostgresDB:
+    Type: String
+
+  RepositoryName:
+    Type: String
+
+  RepositoryAddress:
     Type: String
 
   RedisHost:
@@ -183,7 +192,7 @@ Resources:
                 Value: !Ref PostgresDB
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest' # TODO? - centralize this?
+          Image: !Sub '${RepositoryAddress}/airflow:${ImageTag}'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -260,7 +269,7 @@ Resources:
 
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          Image: !Sub '${RepositoryAddress}/airflow:${ImageTag}'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -338,7 +347,7 @@ Resources:
 
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          Image: !Sub '${RepositoryAddress}/airflow:${ImageTag}'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -453,7 +462,7 @@ Resources:
               Value: !Sub 'db+postgresql://${PostgresUser}:${PostgresPW}@${PostgresHost}/${PostgresDB}?connect_timeout=60'
 
           Essential: 'true'
-          Image: '008963853103.dkr.ecr.us-east-1.amazonaws.com/airflow:latest'
+          Image: !Sub '${RepositoryAddress}/airflow:${ImageTag}'
           LogConfiguration:
             LogDriver: awslogs
             Options:
