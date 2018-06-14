@@ -1,0 +1,110 @@
+---
+Description: Alarms for Airflow Cluster
+
+Parameters:
+  webserverService:
+    Type: String
+  workerService:
+    Type: String
+  schedulerService:
+    Type: String
+  notificationEmailAddress:
+    Type: String
+
+Resources:
+  criticalAlertTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        - Endpoint: !Ref notificationEmailAddress
+          Protocol: email
+
+  workerMemoryAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmActions:
+        - !Ref criticalAlertTopic
+      OKActions:
+        - !Ref criticalAlertTopic
+      MetricName: MemoryUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref workerService
+
+  workerCpuAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+
+      AlarmActions:
+        - !Ref criticalAlertTopic
+      OKActions:
+        - !Ref criticalAlertTopic
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref workerService
+
+  schedulerMemoryAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmActions:
+        - !Ref criticalAlertTopic
+      OKActions:
+        - !Ref criticalAlertTopic
+      MetricName: MemoryUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref schedulerService
+
+  schedulerCpuAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+
+    Properties:
+      AlarmActions:
+        - !Ref criticalAlertTopic
+      OKActions:
+        - !Ref criticalAlertTopic
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref schedulerService
+
+  webserverAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+
+    Properties:
+      AlarmActions:
+        - !Ref criticalAlertTopic
+      OKActions:
+        - !Ref criticalAlertTopic
+      MetricName: UnHealthyHostCount
+      Namespace: AWS/ELB
+      Statistic: Maximum
+      ComparisonOperator: GreaterThanThreshold
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 0

@@ -1,0 +1,15 @@
+---
+template_path: templates/airflow-metadata.yaml
+stack_name: airflow-etl-dev-airflow-metadata
+
+parameters:
+  InternalSubnets:
+    - subnet-c8a196e5
+    - subnet-6439de2c
+    - subnet-f8f3d1a3
+    - subnet-e999fcd5
+    - subnet-1cc5c110
+  PostgresUser: airflow
+  PostgresPW: airflow123
+  PostgresDB: airflow
+  VpcID: vpc-d92765bf

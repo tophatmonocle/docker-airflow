@@ -1,0 +1,105 @@
+---
+Description: Airflow resources that persist between cluster deploys - e.g., metadata DB, Queue, and log bucket.
+
+Parameters:
+  InternalSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+  PostgresUser:
+    Type: String
+  PostgresPW:
+    Type: String
+  VpcID:
+    Type: String
+  PostgresDB:
+    Type: String
+
+Resources:
+  securityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription:  For the Airflow ETL Cluster
+      VpcId: !Ref VpcID
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: -1
+          ToPort: -1
+          IpProtocol: -1
+        - CidrIpv6: "::/0"
+          FromPort: -1
+          ToPort: -1
+          IpProtocol: -1
+
+  logBucket:
+      Type: "AWS::S3::Bucket"
+
+  logBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref logBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::008963853103:role/Administrator' # TODO - use SSM to provide this
+            Action: 's3:*'
+            Resource: !Sub 'arn:aws:s3:::${logBucket}'
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:*'
+            Resource: !Sub 'arn:aws:s3:::${logBucket}'
+            Condition:
+              StringEquals:
+                'aws:SourceVpc': vpc-d92765bf
+
+  dbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: For Airflow Metadata DB
+      SubnetIds: !Ref InternalSubnets
+
+  metaDataDB:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      AllocatedStorage: 20
+      BackupRetentionPeriod: 0
+      DBInstanceClass: db.t2.micro
+      DBName: !Ref PostgresDB
+      DBSubnetGroupName: !Ref dbSubnetGroup
+      Engine: postgres
+      MasterUsername: !Ref PostgresUser
+      MasterUserPassword: !Ref PostgresPW
+      PubliclyAccessible: False
+      VPCSecurityGroups:
+        - !Ref securityGroup
+
+  queueSubnetGroup:
+    Type: "AWS::ElastiCache::SubnetGroup"
+    Properties:
+      Description: For Airflow Event Queue
+      SubnetIds: !Ref InternalSubnets
+
+  eventQueue:
+    Type: "AWS::ElastiCache::CacheCluster"
+    Properties:
+      CacheNodeType: cache.t2.micro
+      CacheSubnetGroupName: !Ref queueSubnetGroup
+      Engine: redis
+      NumCacheNodes: 1
+      VpcSecurityGroupIds:
+        - !Ref securityGroup
+
+Outputs:
+  metadataDBAddress:
+    Value: !GetAtt metaDataDB.Endpoint.Address
+
+  metadataDBPost:
+    Value: !GetAtt metaDataDB.Endpoint.Port
+
+  eventQueueAddress:
+    Value: !GetAtt eventQueue.RedisEndpoint.Address
+
+  eventQueuePort:
+    Value: !GetAtt eventQueue.RedisEndpoint.Port
+
+  securityGroup:
+    Value: !GetAtt securityGroup.GroupId
